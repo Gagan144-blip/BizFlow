@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model BusinessConfig {
+  id           Int      @id @default(autoincrement())
+  adminId      Int      @unique
+  businessName String
+  ownerName    String
+  phone        String
+  type         String
+  prices       Json
+  createdAt    DateTime @default(now())
+}
+
+model Customer {
+  id        Int       @id @default(autoincrement())
+  adminId   Int
+  name      String
+  phone     String
+  address   String?
+  createdAt DateTime  @default(now())
+  services  Service[]
+
+  @@unique ([phone, adminId])
+}
+
+model Service {
+  id         Int      @id @default(autoincrement())
+  adminId    Int
+  customerId Int
+  customer   Customer @relation(fields: [customerId], references: [id])
+  type       String
+  quantity   Int
+  price      Float
+  status     String   @default("pending")
+  createdAt  DateTime @default(now())
+}
+
+model Bill {
+  id         Int      @id @default(autoincrement())
+  adminId    Int
+  customerId Int
+  total      Float
+  createdAt  DateTime @default(now())
+}
+
+model Admin {
+  id         Int      @id @default(autoincrement())
+  name       String
+  email      String   @unique  
+  password   String   
+  createdAt  DateTime @default(now())
+}

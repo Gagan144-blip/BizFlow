@@ -1,140 +1,241 @@
-'use client'
-import { useState, useEffect } from 'react'
+"use client";
+import { useState, useEffect } from "react";
 
 export default function ServicesPage() {
-  const [services, setServices]     = useState([])
-  const [customers, setCustomers]   = useState([])
-  const [config, setConfig]         = useState(null)
-  const [showForm, setShowForm]     = useState(false)
-  const [loading, setLoading]       = useState(false)
-  const [filterStatus, setFilterStatus] = useState('all')
-  const [filterDate, setFilterDate]     = useState('all')
-  const [searchQuery, setSearchQuery]   = useState('')
+  const [services, setServices] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [config, setConfig] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState("all");
+  const [filterDate, setFilterDate] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [form, setForm] = useState({
-    customerId: '',
-    type:       '',
-    quantity:   1,
-    price:      0
-  })
+    customerId: "",
+    type: "",
+    quantity: 1,
+    price: 0,
+  });
 
-  useEffect(() => { fetchAll() }, [])
+  // FIX: edit service modal state
+  const [editService, setEditService] = useState(null);
+  const [editForm, setEditForm] = useState({ type: "", quantity: 1, price: 0 });
+  const [editSaving, setEditSaving] = useState(false);
+
+  useEffect(() => {
+    fetchAll();
+  }, []);
 
   const fetchAll = async () => {
     const [s, c, cfg] = await Promise.all([
-      fetch('/api/services').then(r => r.json()),
-      fetch('/api/customers').then(r => r.json()),
-      fetch('/api/setup').then(r => r.json()),
-    ])
-    setServices(s.services)
-    setCustomers(c.customers)
-    setConfig(cfg.config)
-  }
+      fetch("/api/services").then((r) => r.json()),
+      fetch("/api/customers").then((r) => r.json()),
+      fetch("/api/setup").then((r) => r.json()),
+    ]);
+    setServices(s.services);
+    setCustomers(c.customers);
+    setConfig(cfg.config);
+  };
 
   const getServiceTypes = () => {
-    if (!config) return []
-    const prices = config.prices
-    return Object.keys(prices).map(key => ({
+    if (!config) return [];
+    const prices = config.prices;
+    return Object.keys(prices).map((key) => ({
       key,
-      label: key.replace(/_/g, ' ').toUpperCase(),
-      price: parseFloat(prices[key])
-    }))
-  }
+      label: key.replace(/_/g, " ").toUpperCase(),
+      price: parseFloat(prices[key]),
+    }));
+  };
 
   const handleTypeChange = (type) => {
-    const selected = getServiceTypes().find(s => s.key === type)
-    setForm(prev => ({
+    const selected = getServiceTypes().find((s) => s.key === type);
+    setForm((prev) => ({
       ...prev,
       type,
-      price: selected ? selected.price * prev.quantity : 0
-    }))
-  }
+      price: selected ? selected.price * prev.quantity : 0,
+    }));
+  };
 
   const handleQuantityChange = (qty) => {
-    const selected = getServiceTypes().find(s => s.key === form.type)
-    setForm(prev => ({
+    const selected = getServiceTypes().find((s) => s.key === form.type);
+    setForm((prev) => ({
       ...prev,
       quantity: parseInt(qty),
-      price: selected ? selected.price * parseInt(qty) : 0
-    }))
-  }
+      price: selected ? selected.price * parseInt(qty) : 0,
+    }));
+  };
 
   const handleWalkIn = () => {
-    const walkIn = customers.find(c => c.phone === '0000000000')
+    const walkIn = customers.find((c) => c.phone === "0000000000");
     if (walkIn) {
-      setForm(prev => ({ ...prev, customerId: walkIn.id }))
-      setShowForm(true)
+      setForm((prev) => ({ ...prev, customerId: walkIn.id }));
+      setShowForm(true);
     }
-  }
+  };
 
   const handleSubmit = async () => {
-    if (!form.customerId || !form.type) return
-    setLoading(true)
-    const res  = await fetch('/api/services', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify(form)
-    })
-    const data = await res.json()
+    if (!form.customerId || !form.type) return;
+    setLoading(true);
+    const res = await fetch("/api/services", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const data = await res.json();
     if (data.success) {
-      setShowForm(false)
-      setForm({ customerId: '', type: '', quantity: 1, price: 0 })
-      fetchAll()
+      setShowForm(false);
+      setForm({ customerId: "", type: "", quantity: 1, price: 0 });
+      fetchAll();
     }
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   const updateStatus = async (id, status) => {
-    await fetch('/api/services', {
-      method:  'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ id, status })
-    })
-    fetchAll()
-  }
+    await fetch("/api/services", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, status }),
+    });
+    fetchAll();
+  };
+
+  // ── FIX: Delete service ─────────────────────────────────────────────────────
+  const handleDelete = async (service) => {
+    if (
+      !confirm(
+        `Delete this "${service.type.replace(/_/g, " ").toUpperCase()}" service? This cannot be undone.`,
+      )
+    )
+      return;
+    const res = await fetch(`/api/services?id=${service.id}`, {
+      method: "DELETE",
+    });
+    const data = await res.json();
+    if (data.success) {
+      fetchAll();
+    } else {
+      alert(data.error || "Could not delete service.");
+    }
+  };
+
+  // ── FIX: Open edit modal ────────────────────────────────────────────────────
+  const openEdit = (service) => {
+    setEditService(service);
+    setEditForm({
+      type: service.type,
+      quantity: service.quantity,
+      price: service.price,
+    });
+  };
+
+  // ── FIX: Edit service type/quantity change (auto-recalculates price) ────────
+  const handleEditTypeChange = (type) => {
+    const selected = getServiceTypes().find((s) => s.key === type);
+    setEditForm((prev) => ({
+      ...prev,
+      type,
+      price: selected ? selected.price * prev.quantity : prev.price,
+    }));
+  };
+
+  const handleEditQtyChange = (qty) => {
+    const selected = getServiceTypes().find((s) => s.key === editForm.type);
+    setEditForm((prev) => ({
+      ...prev,
+      quantity: parseInt(qty),
+      price: selected ? selected.price * parseInt(qty) : prev.price,
+    }));
+  };
+
+  const handleEditSave = async () => {
+    if (!editService) return;
+    setEditSaving(true);
+    const res = await fetch("/api/services", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editService.id, ...editForm }),
+    });
+    const data = await res.json();
+    setEditSaving(false);
+    if (data.success) {
+      setEditService(null);
+      fetchAll();
+    } else {
+      alert(data.error || "Could not save changes.");
+    }
+  };
 
   const statusColor = (s) => {
-    if (s === 'pending')     return 'bg-yellow-100 text-yellow-800 border border-yellow-200'
-    if (s === 'in-progress') return 'bg-blue-100 text-blue-800 border border-blue-200'
-    if (s === 'completed')   return 'bg-green-100 text-green-800 border border-green-200'
-  }
+    if (s === "pending")
+      return "bg-yellow-100 text-yellow-800 border border-yellow-200";
+    if (s === "in-progress")
+      return "bg-blue-100 text-blue-800 border border-blue-200";
+    if (s === "completed")
+      return "bg-green-100 text-green-800 border border-green-200";
+  };
 
   // Filter logic
-  const filteredServices = services.filter(s => {
-    if (filterStatus !== 'all' && s.status !== filterStatus) return false
-    if (searchQuery && !s.customer.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    if (filterDate === 'today') {
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-      if (new Date(s.createdAt) < today) return false
+  const filteredServices = services.filter((s) => {
+    if (filterStatus !== "all" && s.status !== filterStatus) return false;
+    if (
+      searchQuery &&
+      !s.customer.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+      return false;
+    if (filterDate === "today") {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(s.createdAt) < today) return false;
     }
-    if (filterDate === 'week') {
-      const week = new Date()
-      week.setDate(week.getDate() - 7)
-      if (new Date(s.createdAt) < week) return false
+    if (filterDate === "week") {
+      const week = new Date();
+      week.setDate(week.getDate() - 7);
+      if (new Date(s.createdAt) < week) return false;
     }
-    if (filterDate === 'month') {
-      const month = new Date()
-      month.setMonth(month.getMonth() - 1)
-      if (new Date(s.createdAt) < month) return false
+    if (filterDate === "month") {
+      const month = new Date();
+      month.setMonth(month.getMonth() - 1);
+      if (new Date(s.createdAt) < month) return false;
     }
-    return true
-  })
+    return true;
+  });
 
-  const pendingCount   = services.filter(s => s.status === 'pending').length
-  const completedCount = services.filter(s => s.status === 'completed').length
-  const totalRevenue   = services.reduce((sum, s) => sum + s.price, 0)
-  const regularCustomers = customers.filter(c => c.phone !== '0000000000')
+  const pendingCount = services.filter((s) => s.status === "pending").length;
+  const completedCount = services.filter(
+    (s) => s.status === "completed",
+  ).length;
+  const totalRevenue = services.reduce((sum, s) => sum + s.price, 0);
+  const regularCustomers = customers.filter((c) => c.phone !== "0000000000");
 
   return (
     <div className="space-y-6">
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">Services</h1>
-          <p className="text-gray-500 text-sm mt-1">{services.length} total services</p>
+          <p className="text-gray-500 text-sm mt-1">
+            {services.length} total services
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {/* AUTOMATION 5: Export services as CSV */}
+          <button
+            onClick={() => {
+              window.location.href = "/api/export?type=services";
+            }}
+            className="flex items-center gap-1.5 px-4 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 transition-all"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="w-4 h-4"
+            >
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Export CSV
+          </button>
           <button
             onClick={handleWalkIn}
             className="px-5 py-2.5 bg-orange-500 text-white rounded-xl text-sm font-semibold hover:bg-orange-600 transition-all shadow-sm"
@@ -153,12 +254,35 @@ export default function ServicesPage() {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4">
         {[
-          { label: 'Pending',   value: pendingCount,       color: 'text-orange-700', bg: 'bg-orange-50', border: 'border-orange-200' },
-          { label: 'Completed', value: completedCount,     color: 'text-green-700',  bg: 'bg-green-50',  border: 'border-green-200'  },
-          { label: 'Revenue',   value: `₹${totalRevenue}`, color: 'text-blue-700',   bg: 'bg-blue-50',   border: 'border-blue-200'   },
-        ].map(s => (
-          <div key={s.label} className={`${s.bg} rounded-2xl p-5 border ${s.border}`}>
-            <div className={`text-3xl font-bold ${s.color} mb-1`}>{s.value}</div>
+          {
+            label: "Pending",
+            value: pendingCount,
+            color: "text-orange-700",
+            bg: "bg-orange-50",
+            border: "border-orange-200",
+          },
+          {
+            label: "Completed",
+            value: completedCount,
+            color: "text-green-700",
+            bg: "bg-green-50",
+            border: "border-green-200",
+          },
+          {
+            label: "Revenue",
+            value: `₹${totalRevenue}`,
+            color: "text-blue-700",
+            bg: "bg-blue-50",
+            border: "border-blue-200",
+          },
+        ].map((s) => (
+          <div
+            key={s.label}
+            className={`${s.bg} rounded-2xl p-5 border ${s.border}`}
+          >
+            <div className={`text-3xl font-bold ${s.color} mb-1`}>
+              {s.value}
+            </div>
             <div className="text-sm font-medium text-gray-500">{s.label}</div>
           </div>
         ))}
@@ -167,49 +291,67 @@ export default function ServicesPage() {
       {/* Add Service Form */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm">
-          <h2 className="text-lg font-semibold text-gray-800 mb-5">New Service</h2>
+          <h2 className="text-lg font-semibold text-gray-800 mb-5">
+            New Service
+          </h2>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1.5 block">Select customer</label>
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                Select customer
+              </label>
               <select
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-white"
                 value={form.customerId}
-                onChange={e => setForm({ ...form, customerId: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, customerId: e.target.value })
+                }
               >
                 <option value="">Choose customer...</option>
-                <option value={customers.find(c => c.phone === '0000000000')?.id}>
+                <option
+                  value={customers.find((c) => c.phone === "0000000000")?.id}
+                >
                   ⚡ Walk-in Customer
                 </option>
-                {regularCustomers.map(c => (
-                  <option key={c.id} value={c.id}>{c.name} — {c.phone}</option>
+                {regularCustomers.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} — {c.phone}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1.5 block">Service type</label>
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                Service type
+              </label>
               <select
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-white"
                 value={form.type}
-                onChange={e => handleTypeChange(e.target.value)}
+                onChange={(e) => handleTypeChange(e.target.value)}
               >
                 <option value="">Choose service...</option>
-                {getServiceTypes().map(s => (
-                  <option key={s.key} value={s.key}>{s.label} — ₹{s.price}</option>
+                {getServiceTypes().map((s) => (
+                  <option key={s.key} value={s.key}>
+                    {s.label} — ₹{s.price}
+                  </option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1.5 block">Quantity</label>
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                Quantity
+              </label>
               <input
                 type="number"
                 min="1"
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
                 value={form.quantity}
-                onChange={e => handleQuantityChange(e.target.value)}
+                onChange={(e) => handleQuantityChange(e.target.value)}
               />
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1.5 block">Total price (auto)</label>
+              <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                Total price (auto)
+              </label>
               <div className="w-full px-4 py-3 border border-green-200 rounded-xl text-sm bg-green-50 text-green-700 font-bold">
                 ₹{form.price}
               </div>
@@ -217,7 +359,10 @@ export default function ServicesPage() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => { setShowForm(false); setForm({ customerId: '', type: '', quantity: 1, price: 0 }) }}
+              onClick={() => {
+                setShowForm(false);
+                setForm({ customerId: "", type: "", quantity: 1, price: 0 });
+              }}
               className="px-5 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
               Cancel
@@ -227,7 +372,7 @@ export default function ServicesPage() {
               disabled={loading}
               className="px-5 py-2.5 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Service'}
+              {loading ? "Saving..." : "Save Service"}
             </button>
           </div>
         </div>
@@ -235,71 +380,67 @@ export default function ServicesPage() {
 
       {/* Search + Filter bar */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm flex items-center gap-4 flex-wrap">
-
-        {/* Search */}
         <div className="relative flex-1 min-w-48">
-          <svg className="absolute left-3 top-3 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          <svg
+            className="absolute left-3 top-3 w-4 h-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="2"
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
           </svg>
           <input
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500"
             placeholder="Search by customer name..."
             value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
+            onChange={(e) => setSearchQuery(e.target.value)}
           />
         </div>
-
-        {/* Status filter */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-gray-500">Status:</span>
           <div className="flex gap-1">
             {[
-              { value: 'all',         label: 'All'         },
-              { value: 'pending',     label: 'Pending'     },
-              { value: 'in-progress', label: 'In Progress' },
-              { value: 'completed',   label: 'Completed'   },
-            ].map(f => (
+              { value: "all", label: "All" },
+              { value: "pending", label: "Pending" },
+              { value: "in-progress", label: "In Progress" },
+              { value: "completed", label: "Completed" },
+            ].map((f) => (
               <button
                 key={f.value}
                 onClick={() => setFilterStatus(f.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                  ${filterStatus === f.value
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  ${filterStatus === f.value ? "bg-green-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
               >
                 {f.label}
               </button>
             ))}
           </div>
         </div>
-
-        {/* Date filter */}
         <div className="flex items-center gap-2">
           <span className="text-xs font-medium text-gray-500">Date:</span>
           <div className="flex gap-1">
             {[
-              { value: 'all',   label: 'All time'   },
-              { value: 'today', label: 'Today'      },
-              { value: 'week',  label: 'This week'  },
-              { value: 'month', label: 'This month' },
-            ].map(f => (
+              { value: "all", label: "All time" },
+              { value: "today", label: "Today" },
+              { value: "week", label: "This week" },
+              { value: "month", label: "This month" },
+            ].map((f) => (
               <button
                 key={f.value}
                 onClick={() => setFilterDate(f.value)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                  ${filterDate === f.value
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
+                  ${filterDate === f.value ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}
               >
                 {f.label}
               </button>
             ))}
           </div>
         </div>
-
-        {/* Results count */}
         <div className="ml-auto">
           <span className="text-xs text-gray-400">
             {filteredServices.length} of {services.length} services
@@ -312,46 +453,84 @@ export default function ServicesPage() {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
-              {['Customer', 'Service', 'Qty', 'Price', 'Status', 'Update', 'Date'].map(h => (
-                <th key={h} className="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wide">{h}</th>
+              {[
+                "Customer",
+                "Service",
+                "Qty",
+                "Price",
+                "Status",
+                "Update",
+                "Date",
+                "Actions",
+              ].map((h) => (
+                <th
+                  key={h}
+                  className="text-left px-6 py-4 text-xs font-bold text-gray-500 uppercase tracking-wide"
+                >
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {filteredServices.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-16 text-center">
+                <td colSpan="8" className="px-6 py-16 text-center">
                   <div className="text-4xl mb-3">🔍</div>
                   <p className="text-gray-500 font-medium">No services found</p>
-                  <p className="text-gray-400 text-sm mt-1">Try changing filters</p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Try changing filters
+                  </p>
                 </td>
               </tr>
             ) : (
-              filteredServices.map(s => (
+              filteredServices.map((s) => (
                 <tr key={s.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
-                        ${s.customer.phone === '0000000000' ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
-                        {s.customer.phone === '0000000000' ? '⚡' : s.customer.name.charAt(0).toUpperCase()}
+                      <div
+                        className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0
+                        ${s.customer.phone === "0000000000" ? "bg-orange-100 text-orange-700" : "bg-blue-100 text-blue-700"}`}
+                      >
+                        {s.customer.phone === "0000000000"
+                          ? "⚡"
+                          : s.customer.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
                         <div className="font-semibold text-gray-800 text-sm">
-                          {s.customer.phone === '0000000000' ? 'Walk-in' : s.customer.name}
+                          {s.customer.phone === "0000000000"
+                            ? "Walk-in"
+                            : s.customer.name}
                         </div>
                         <div className="text-xs text-gray-400">
-                          {s.customer.phone === '0000000000' ? 'Quick service' : s.customer.phone}
+                          {s.customer.phone === "0000000000"
+                            ? "Quick service"
+                            : s.customer.phone}
                         </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-700">
-                    {s.type.replace(/_/g, ' ').toUpperCase()}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-600">{s.quantity}</td>
-                  <td className="px-6 py-4 text-sm font-bold text-green-700">₹{s.price}</td>
                   <td className="px-6 py-4">
-                    <span className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColor(s.status)}`}>
+                    <div className="text-sm font-medium text-gray-700">
+                      {s.type.replace(/_/g, " ").toUpperCase()}
+                    </div>
+                    {/* FIX: show billed badge if service is already billed */}
+                    {s.billId && (
+                      <span className="text-xs text-purple-600 bg-purple-50 border border-purple-100 px-2 py-0.5 rounded-full">
+                        🔒 Billed
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-600">
+                    {s.quantity}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-bold text-green-700">
+                    ₹{s.price}
+                  </td>
+                  <td className="px-6 py-4">
+                    <span
+                      className={`text-xs px-3 py-1.5 rounded-full font-semibold ${statusColor(s.status)}`}
+                    >
                       {s.status}
                     </span>
                   </td>
@@ -359,7 +538,7 @@ export default function ServicesPage() {
                     <select
                       className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none bg-white cursor-pointer"
                       value={s.status}
-                      onChange={e => updateStatus(s.id, e.target.value)}
+                      onChange={(e) => updateStatus(s.id, e.target.value)}
                     >
                       <option value="pending">Pending</option>
                       <option value="in-progress">In Progress</option>
@@ -367,7 +546,28 @@ export default function ServicesPage() {
                     </select>
                   </td>
                   <td className="px-6 py-4 text-xs text-gray-400">
-                    {new Date(s.createdAt).toLocaleDateString('en-IN')}
+                    {new Date(s.createdAt).toLocaleDateString("en-IN")}
+                  </td>
+                  {/* FIX: Edit and Delete buttons — disabled for billed services */}
+                  <td className="px-6 py-4">
+                    {s.billId ? (
+                      <span className="text-xs text-gray-400 italic">—</span>
+                    ) : (
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => openEdit(s)}
+                          className="px-2.5 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-all"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(s)}
+                          className="px-2.5 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-all"
+                        >
+                          Del
+                        </button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -375,6 +575,85 @@ export default function ServicesPage() {
           </tbody>
         </table>
       </div>
+
+      {/* ── FIX: Edit Service Modal ──────────────────────────────────────────── */}
+      {editService && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-semibold text-gray-800">
+                Edit Service
+              </h2>
+              <button
+                onClick={() => setEditService(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Customer (read-only) */}
+            <div className="mb-4 px-4 py-3 bg-gray-50 rounded-xl text-sm text-gray-600 border border-gray-200">
+              👤 <strong>{editService.customer.name}</strong>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  Service type
+                </label>
+                <select
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100 bg-white"
+                  value={editForm.type}
+                  onChange={(e) => handleEditTypeChange(e.target.value)}
+                >
+                  {getServiceTypes().map((s) => (
+                    <option key={s.key} value={s.key}>
+                      {s.label} — ₹{s.price}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  Quantity
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  value={editForm.quantity}
+                  onChange={(e) => handleEditQtyChange(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-1.5 block">
+                  Total price (auto)
+                </label>
+                <div className="w-full px-4 py-3 border border-green-200 rounded-xl text-sm bg-green-50 text-green-700 font-bold">
+                  ₹{editForm.price}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditService(null)}
+                className="flex-1 py-3 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditSave}
+                disabled={editSaving}
+                className="flex-1 py-3 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 disabled:opacity-50"
+              >
+                {editSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }

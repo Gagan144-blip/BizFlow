@@ -1,36 +1,17 @@
-import twilio from 'twilio'
+// ─── WhatsApp via Twilio has been removed ────────────────────────────────────
+// The billing page now uses the free wa.me deep-link approach instead.
+// Clicking "Share on WhatsApp" opens WhatsApp Web / the WhatsApp app directly
+// with the customer phone number and the full bill pre-filled.
+// No API key, no Twilio account, no cost — just works.
+// ─────────────────────────────────────────────────────────────────────────────
 
-export async function POST(req) {
-  try {
-    const body = await req.json()
-
-    const client = twilio(
-      process.env.TWILIO_ACCOUNT_SID,
-      process.env.TWILIO_AUTH_TOKEN
-    )
-
-    const message = await client.messages.create({
-      from: process.env.TWILIO_WHATSAPP_FROM,
-      to:   `whatsapp:+91${body.phone}`,
-      body: `
-🧾 *BizFlow Invoice*
-━━━━━━━━━━━━━━━
-👤 Customer: ${body.customerName}
-🏪 Shop: ${body.businessName}
-
-📋 *Services:*
-${body.services.map(s => `• ${s.type.replace(/_/g, ' ').toUpperCase()} × ${s.quantity} = ₹${s.price}`).join('\n')}
-
-━━━━━━━━━━━━━━━
-💰 *Total: ₹${body.total}*
-━━━━━━━━━━━━━━━
-Thank you for visiting! 🙏
-      `
-    })
-
-    return Response.json({ success: true, sid: message.sid })
-  } catch (err) {
-    console.log('WhatsApp error:', err.message)
-    return Response.json({ success: false, error: err.message }, { status: 500 })
-  }
+export async function POST() {
+  return Response.json(
+    {
+      success: false,
+      message:
+        "Twilio WhatsApp removed. Use the wa.me deep-link on the billing page instead.",
+    },
+    { status: 410 },
+  );
 }

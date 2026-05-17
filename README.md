@@ -336,12 +336,6 @@ GitHub: [@Gagan144-blip](https://github.com/Gagan144-blip)
 
 ---
 
-## 📄 License
-
-This project is open source and available under the [MIT License](LICENSE).
-
----
-
 <div align="center">
 
 **⭐ If this project helped you, please give it a star on GitHub!**

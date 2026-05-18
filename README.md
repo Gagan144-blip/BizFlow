@@ -316,7 +316,7 @@ sudo systemctl stop mysql    # Stop MySQL service
 
 ---
 
-## 🙋 How to Explain This in an Interview
+## 🙋 About My project 
 
 > *"I built BizFlow after talking to a real cyber cafe owner who was wasting hours every day on manual work — billing customers one by one, combining Aadhaar card photos in Paint, arranging passport photos using separate software, and constantly searching for government portal URLs.*
 >
